@@ -1,0 +1,37 @@
+#!/bin/sh
+usage() { echo "Usage: $0 [-i enable icon]" 1>&2; exit 1; }
+
+char=""
+
+while getopts "i" o;
+do
+  case "${o}" in
+    i)
+      char=" "
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+load=$(uptime | grep -ohe 'load average[s:][: ].*' | awk '{ print $3 }' | sed 's/,//')
+
+math=$(echo "$load * 100" |bc)
+math=$(echo $math | cut -d "." -f 1);
+
+echo "$char$load"
+echo "$char$load"
+
+if [ "$math" -gt "200" ]; then
+  echo "#CA0000"
+elif [ "$math" -gt "100" ]; then
+  echo "#EFE110"
+elif [ "$math" -lt "100" ]; then
+  echo "#34CD0F"
+fi
+
+case $BLOCK_BUTTON in
+  1) htop & ;;
+esac

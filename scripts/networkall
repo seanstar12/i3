@@ -1,0 +1,23 @@
+#!/bin/bash
+
+function join_by { local IFS="$1"; shift; echo "$*"; }
+
+DIR="/sys/class/net"
+IPS=()
+
+for D in `ls /sys/class/net`; do
+  if [ "lo" != "$D" ]; then
+    if [ `cat /sys/class/net/$D/operstate` == "up" ]; then
+      ipaddr="$(ip addr show $D | perl -n -e'/inet (.+)\// && print $1')"
+      if [ -n "$ipaddr" ]; then
+        IPS+=("$ipaddr")
+      fi
+    fi
+  fi
+done
+
+str=`join_by " " "${IPS[@]}"`
+echo $str
+echo $str
+
+echo "#34CD0F"

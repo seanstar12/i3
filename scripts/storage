@@ -1,0 +1,33 @@
+#!/bin/sh
+usage() { echo "Usage: $0 [-d <sdX|mount point>] [-i icon]" 1>&2; exit 1; }
+
+char=""
+
+while getopts "d:i" o;
+do
+  case "${o}" in
+    i)
+      char=" "
+      ;;
+    d)
+      d=${OPTARG}
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+if [[ ! -z "$d" ]]; then
+  space=$(df -Ph | grep "$d" | awk '{print $4}')
+else
+  space=$(df -Ph / | tail -1 | awk '{print $4}')
+fi
+
+echo "$char$space"
+echo "$char$space"
+
+case $BLOCK_BUTTON in
+  1) thunar & ;;
+esac

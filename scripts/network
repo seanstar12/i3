@@ -1,0 +1,92 @@
+#!/bin/sh
+usage() { echo "Usage: $0 [-n <network interface|=eth0>] [-i icon]" 1>&2; exit 1; }
+
+char=""
+wifi_icon=""
+wired_icon=""
+
+while getopts "n:i" o;
+do
+  case "${o}" in
+    i)
+      char_enable=1
+      ;;
+    n)
+      n=${OPTARG}
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+INTERFACE="${n:-eth0}"
+DIR="/sys/class/net"
+state="$(cat /sys/class/net/$INTERFACE/operstate)"
+is_wireless=0
+
+if [ -a $DIR/$INTERFACE/wireless ]; then
+  is_wireless=1
+fi
+
+get_wireless_info() {
+  ssid=$(iwconfig wlan0 | grep "ESSID" | awk -F'"' '$0=$2')
+  quality=$(iwconfig wlan0 | grep "Link Quality" | sed 's/Link Quality//;s/Signal level//g' | cut -d "=" -f 2)
+
+  top_quality=$(echo $quality | cut -d "/" -f 1)
+  bottom_quality=$(echo $quality | cut -d "/" -f 2)
+  
+  percent=$(awk "BEGIN { pc=100*${top_quality}/${bottom_quality}; i=int(pc); print (pc-i<0.5)?i:i+1 }")
+   
+}
+
+if [ "$state" != "up" ]; then
+	exit 0
+fi
+
+ipaddr="$(ip addr show $INTERFACE | perl -n -e'/inet (.+)\// && print $1')"
+
+if [ "$is_wireless" = 0 ]; then
+  speed="$(cat /sys/class/net/$INTERFACE/speed)"
+
+  if [[ "$char_enable" = "1" ]]; then
+    icon=$wired_icon
+  else
+    icon=""
+  fi
+  echo "$icon$ipaddr"
+  echo "$icon$ipaddr"
+
+  if [ "$speed" = "10" ]; then
+    echo "#E36000" 
+  elif [ "$speed" = "100" ]; then
+    echo "#EFE110" 
+  elif [ "$speed" = "1000" ]; then
+    echo "#34CD0F" 
+  fi
+elif [ "$is_wireless" = 1 ]; then
+  get_wireless_info
+  if [[ "$char_enable" = "1" ]]; then
+    icon=$wifi_icon
+  else
+    icon=""
+  fi
+  echo "$icon$ssid $percent% $ipaddr"
+  echo "$icon$ssid $percent% $ipaddr"
+
+  if [ "$percent" -ge "75" ]; then
+    echo "#34CD0F" 
+  elif [ "$percent" -ge "50" ]; then
+    echo "#EFE110" 
+  elif [ "$percent" -ge "25" ]; then
+    echo "#E36000" 
+  elif [ "$speed" -lt "25" ]; then
+    echo "#CA0000" 
+  fi
+fi
+
+#case $BLOCK_BUTTON in
+#  1) gnome-control-center network & ;;
+#esac
+

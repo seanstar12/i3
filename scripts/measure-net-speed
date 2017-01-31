@@ -1,0 +1,88 @@
+#!/bin/bash
+# Public Domain
+# (someone claimed the next lines would be useful for…
+#  people. So here goes: © 2012 Stefan Breunig
+#  stefan+measure-net-speed@mathphys.fsk.uni-heidelberg.de)
+
+
+# path to store the old results in
+dir=/sys/class/net
+path="/home/$USER/.i3/measure-net-speed"
+cd $dir
+
+interfaces=(*)
+ignore=( lo )
+interfaces=( "${interfaces[@]/$ignore}" )
+
+rx=0
+tx=0
+
+for interface in "${interfaces[@]}"
+  do
+    if [ -a "$dir/$interface/statistics/rx_bytes" ]; then
+      read rx_bytes < "$dir/$interface/statistics/rx_bytes"  
+      read tx_bytes < "$dir/$interface/statistics/tx_bytes"  
+      ((rx=$rx_bytes+$rx))
+      ((tx=$tx_bytes+$tx))
+    fi
+  done
+
+# get time and sum of rx/tx for combined display
+time=$(date +%s)
+
+# write current data if file does not exist. Do not exit, this will cause
+# problems if this file is sourced instead of executed as another process.
+if ! [[ -f "${path}" ]]; then
+  echo "${time} ${rx} ${tx}" > "${path}"
+  chmod 0666 "${path}"
+fi
+
+# read previous state and update data storage
+read old < "${path}"
+echo "${time} ${rx} ${tx}" > "${path}"
+
+# parse old data and calc time passed
+old=(${old//;/ })
+time_diff=$(( $time - ${old[0]} ))
+
+# sanity check: has a positive amount of time passed
+if [[ "${time_diff}" -gt 0 ]]; then
+  # calc bytes transferred, and their rate in byte/s
+  rx_diff=$(( $rx - ${old[1]} ))
+  tx_diff=$(( $tx - ${old[2]} ))
+  rx_rate=$(( $rx_diff / $time_diff ))
+  tx_rate=$(( $tx_diff / $time_diff ))
+
+  # shift by 10 bytes to get KiB/s. If the value is larger than
+  # 1024^2 = 1048576, then display MiB/s instead (simply cut off  
+  # the last two digits of KiB/s). Since the values only give an  
+  # rough estimate anyway, this improper rounding is negligible.
+
+  # incoming
+  down=""
+  up=""
+  space=" "
+  kb="kb"
+  mb="mb"
+
+  rx_kib=$(( $rx_rate >> 10 ))
+  if [[ "$rx_rate" -gt 1048576 ]]; then
+    echo -n "$down ${rx_kib:0:-3}.${rx_kib: -3:-2}$mb"
+  else
+    echo -n "$down ${rx_kib}$kb"
+  fi
+
+  echo -n "$space"
+
+  # outgoing
+  tx_kib=$(( $tx_rate >> 10 ))
+  if [[ "$tx_rate" -gt 1048576 ]]; then
+    echo -n "$up ${tx_kib:0:-3}.${tx_kib: -3:-2}$mb"
+  else
+    echo -n "$up ${tx_kib}$kb"
+  fi
+else
+  echo -n "$down 0$kb$space$up 0$kb"
+  echo -n "$space"
+  echo -n "$up 0$kb"
+fi

@@ -1,0 +1,28 @@
+#!/bin/sh
+
+usage() { echo "Usage: $0 [-i enable icon]" 1>&2; exit 1; }
+
+char=""
+
+while getopts "i" o;
+do
+  case "${o}" in
+    i)
+      char=" "
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+date=$(date "+%a %m-%d %I:%M")
+
+echo "$char$date"
+echo "$char$date"
+
+case $BLOCK_BUTTON in
+  1) gsimplecal & ;; 
+  #1) gnome-control-center datetime & ;;
+esac

@@ -1,0 +1,51 @@
+#!/bin/sh
+
+usage() { echo "Usage: $0 [-i enable icon]" 1>&2; exit 1; }
+
+lock=" "
+unlock=" "
+icon=" " #rocket
+text="VPN"
+
+while getopts "d:i" o;
+do
+  case "${o}" in
+    i)
+      char_enable=1
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+DIR="/var/run/vpnc/defaultroute"
+
+if [ -a $DIR ]; then
+  if [[ ! -z "$char_enable" ]]; then
+    char=$icon
+  else
+    char=""
+  fi
+
+  echo "$char$text"
+  echo "$char$text"
+  echo "#34CD0F"
+  #exit 33 #sets as urgent. hard red background
+  case $BLOCK_BUTTON in
+    #right click will kill vpnc
+    3) sudo vpnc-disconnect ;;
+  esac
+
+else
+  if [[ ! -z "$char_enable" ]]; then
+    char=$unlock
+  else
+    char=""
+  fi
+  echo "$text"
+  echo "$text"
+  echo "#FF0000"
+fi
+

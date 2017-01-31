@@ -1,0 +1,121 @@
+#!/usr/bin/perl
+#
+# Copyright 2014 Pierre Mavro <deimos@deimos.fr>
+# Copyright 2014 Vivien Didelot <vivien@didelot.org>
+#
+# Licensed under the terms of the GNU GPL v3, or any later version.
+#
+# This script is meant to use with i3blocks. It parses the output of the "acpi"
+# command (often provided by a package of the same name) to read the status of
+# the battery, and eventually its remaining time (to full charge or discharge).
+#
+# The color will gradually change for a percentage below 85%, and the urgency
+# (exit code 33) is set if there is less that 5% remaining.
+#
+# Modified by Raphael. Ribeiro <raphaelpr01@gmail.com>
+
+use strict;
+use warnings;
+use utf8;
+use IO::File;
+
+my $acpi;
+my $status;
+my $percent;
+my $charge_time;
+my $selector;
+my @colors;
+my $icon;
+my $battery_lock;
+my @battery_icon;
+my @charging_icon;
+my $f;
+
+$battery_lock = "/home/sean/.i3/battery_lock";
+# font awesome battery icons -> 0%, 25%, 50%, 75%, 100%
+@battery_icon = ("", "", "", "", "");
+
+# font awesome -> bolt, plug (charging, fully charged)
+@charging_icon = ("", "");
+
+# colors -> red orange yellow yellow-green green
+@colors = ("#FF0000", "#F87B2F", "#FFF600", "#A8FF00", "#34CD0F");
+
+# read the first line of the "acpi" command output
+open (ACPI, 'acpi -b |') or die "Can't exec acpi: $!\n";
+$acpi = <ACPI>;
+close(ACPI);
+
+# fail on unexpected output
+if ($acpi !~ /: (\w+), (\d+)%/) { die "$acpi\n"; }
+
+# if desktop, should be Full and\\  zero
+if ($2 eq 0 && $1 eq 'Charging' || $1 eq 'Full') { exit(0); }
+
+$status = $1;
+$percent = $2;
+
+
+if ($acpi =~ /(\d\d:\d\d):/) {
+  $charge_time = $1;
+}
+
+#$status = "Charging";
+#$percent = 19;
+#$charge_time = "1:40";
+
+$selector = set_selector();
+$icon = set_icon();
+render_text();
+exit(alert());
+
+sub render_text {
+  print "$icon " . "$percent%" . " $charge_time" ."\n";
+  print "$percent%" . " $charge_time" ."\n";
+  print "$colors[$selector]\n"; 
+}
+
+sub set_selector {
+  if ($percent < 10) {
+    return 0;
+  } elsif ($percent < 25) {
+    return 1;
+  } elsif ($percent < 50) {
+    return 2;
+  } elsif ($percent < 75) {
+    return 3;
+  } elsif ($percent <= 100) {
+    return 4;
+  }
+}
+
+sub set_icon {
+  if ($status eq "Charging") {
+    if (-e $battery_lock) {unlink($battery_lock)};  #if we're charging, we can remove the alert
+    return $charging_icon[0];
+  }
+  elsif ($status eq "Full") {
+    return $charging_icon[1];
+  }
+  elsif ($status eq "Charging") {
+    return $battery_icon[$selector]
+  }
+  elsif ($status eq "Discharging") {
+    return $battery_icon[$selector]
+  }
+  else {
+    return $battery_icon[0]
+  }
+}
+
+sub alert {
+  if ($percent < 5 && $status eq "Discharging") {
+    if (! -e $battery_lock) {
+        $f = new IO::File($battery_lock, "a") || die "open: $!";
+        $f->close();
+      exec("i3-nagbar -m 'Battery low!' -b 'Hibernate!' 'pm-hibernate' >/dev/null 2>&1 &");
+    }
+    return 33;
+  }
+  return 0;
+}
