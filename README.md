@@ -6,7 +6,7 @@ does i3 things.
 ## rofi-custom:
 
 ~/bin/rofi-custom
-` bash
+``` bash
 #!bin/bash
 rofi -modi "run,ssh" -show run -auto-select
-`
+```
